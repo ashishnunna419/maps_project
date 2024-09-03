@@ -27,14 +27,14 @@
       text-align: center;
     }
 
-    #pie-container div .centered-text {
-      position: absolute;
-      top: 65%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 24px; 
-      font-weight: bold;
-      color: black; 
+    #error-message {
+      display: none;
+      padding: 1rem;
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      border-radius: 0.25rem;
+      margin: 1rem;
     }
   </style>
 </head>
@@ -44,32 +44,31 @@
       <div style="margin: 1rem; height: calc(100% - 4rem);" id="map"></div>
     </section>
     <section style="width: 50%; padding: 2rem;">
+      <article id="error-message">
+        No data has been entered for this ZIP code or value.
+      </article>
       <article id="pie-container" style="height: calc(50% - 2rem); padding: 1rem;">
         <div>
           <h2>Demographic</h2>
           <canvas id="pie-1"></canvas>
-          <div class="centered-text">100</div> 
         </div>
         <div>
           <h2>Plan</h2>
           <canvas id="pie-2"></canvas>
-          <div class="centered-text">100</div> 
         </div>
         <div>
           <h2>Gender</h2>
           <canvas id="pie-3"></canvas>
-          <div class="centered-text">100</div> 
         </div>
         <div>
           <h2>Income</h2>
           <canvas id="pie-4"></canvas>
-          <div class="centered-text">100</div> 
         </div>
       </article>
       <article style="height: calc(50% - 2rem); padding: 1rem;">
         <div id="chart-container">
           <select id="graphType">
-            <option value="both">Year vs Health , Dental and Total</option>
+            <option value="both">Year vs Health, Dental and Total</option>
           </select>
           <canvas id="myChart"></canvas>
         </div>
@@ -79,62 +78,79 @@
 
 
   <script>mapboxgl.accessToken = 'pk.eyJ1IjoiYXNkZmFzZGZkZmciLCJhIjoiY2xsNmxzdDF5MG43MjNxbWtuMDRqZ3F2ciJ9.kKJFcApNhpPfmUtXJiNgow';
+  function showError() {
+      document.getElementById('error-message').style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('error-message').style.display = 'none';
+    }
     const pies = [null, null, null, null];
     
-    const makePieChart = (chartNumber, percentages, name, labels) => {
-      if (pies[chartNumber]) {
-        pies[chartNumber].destroy();
-        pies[chartNumber] = null;
-      }
-    
-      const data = {
-        labels: labels,
-        datasets: [{
-          label: name,
-          data: percentages,
-          backgroundColor: [
-            'rgb(255, 99, 132)',
-            'rgb(54, 162, 235)',
-            'rgb(255, 205, 86)',
-            'rgb(75, 192, 192)',
-            'rgb(153, 102, 255)'
-          ],
-          hoverOffset: 4
-        }]
-      };
-    
-      const config = {
-        type: 'doughnut',
-        data: data,
-        options: {
-          plugins: {
-            legend: {
-              display: false,
-            },
-            datalabels: {
-              color: '#fff',         
-              formatter: (value, context) => {
-                return `${Math.round(value)}%`; 
-              },
-              anchor: 'center',          
-              align: 'center',
-              offset: 0,
-              borderWidth: 1,
-              borderColor: '#fff',
-              borderRadius: 2,
-              backgroundColor: (context) => context.dataset.backgroundColor[context.dataIndex],
-              font: {
-                weight: 'bold',
-                size: 14,
-              }
+    const makePieChart = (chartNumber, percentages, name, labels, values) => {
+  if (pies[chartNumber]) {
+    pies[chartNumber].destroy();
+    pies[chartNumber] = null;
+  }
+
+  const data = {
+    labels: labels,
+    datasets: [{
+      label: name,
+      data: percentages,
+      backgroundColor: [
+        'rgb(255, 99, 132)',
+        'rgb(54, 162, 235)',
+        'rgb(255, 205, 86)',
+        'rgb(75, 192, 192)',
+        'rgb(153, 102, 255)'
+      ],
+      hoverOffset: 4
+    }]
+  };
+
+  const config = {
+    type: 'doughnut',
+    data: data,
+    options: {
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(tooltipItem) {
+              const index = tooltipItem.dataIndex;
+              return `${labels[index]}: ${Math.round(percentages[index])}% (total:${values[index]})`;
             }
           }
         },
-        plugins: [ChartDataLabels]
-      };
-    
-      pies[chartNumber] = new Chart(document.getElementById(`pie-${chartNumber}`), config);
-    };
+        legend: {
+          display: false,
+        },
+        datalabels: {
+          color: '#fff',
+          formatter: (value, context) => {
+            const index = context.dataIndex;
+            return `${Math.round(value)}%`;
+          },
+          anchor: 'center',
+          align: 'center',
+          offset: 0,
+          borderWidth: 1,
+          borderColor: '#fff',
+          borderRadius: 2,
+          backgroundColor: (context) => context.dataset.backgroundColor[context.dataIndex],
+          font: {
+            weight: 'bold',
+            size: 14,
+          }
+        }
+      }
+    },
+    plugins: [ChartDataLabels]
+  };
+
+  pies[chartNumber] = new Chart(document.getElementById(`pie-${chartNumber}`), config);
+};
+
     
     var map = new mapboxgl.Map({
       container: 'map',
@@ -333,90 +349,123 @@
         .catch(error => console.error('Error:', error));
     }
     
-    
-    function updateChartData(data) {
-      const genderPercentages = data.gender_percentages;
-      const enrollmentPercentages = data.enrollment_percentages;
-      const incomeCategories = data.income_categories;
-      const ageGroupPercentages = data.age_group_percentages;
-      const enrollmentByYear = data.enrollment_by_year;
-      makePieChart(3, [genderPercentages.male_percentage, genderPercentages.female_percentage], "Gender", ["male", "female"]);
-      makePieChart(2, [enrollmentPercentages.health_enrollment_percentage, enrollmentPercentages.dental_enrollment_percentage], "Enrollment", ["health_enrollment", "dental_enrollment"]);
-      makePieChart(4, [incomeCategories.low_income_percentage, incomeCategories.medium_income_percentage, incomeCategories.high_income_percentage], "Income", ["low_income", "medium_income", "high_income"]);
-      makePieChart(1, [
-        ageGroupPercentages["18-25"],
-        ageGroupPercentages["25-35"],
-        ageGroupPercentages["35-45"],
-        ageGroupPercentages["45-55"],
-        ageGroupPercentages["56+"]
-      ], "Age Group", ["18-25", "25-35", "35-45", "45-55", "56",]);
-    
-      if (enrollmentByYear) {
-        chartData.labels = Object.keys(enrollmentByYear);
-        chartData.health = Object.values(enrollmentByYear).map(e => e.health);
-        chartData.dental = Object.values(enrollmentByYear).map(e => e.dental);
-    
-        const selectedGraphType = graphTypeSelect.value;
-        const total = chartData.health.map((healthValue, index) => healthValue + chartData.dental[index]);
+  function updateChartData(data) {
+  const genderPercentages = data.gender_percentages;
+  const enrollmentPercentages = data.enrollment_percentages;
+  const incomeCategories = data.income_categories;
+  const ageGroupPercentages = data.age_group_percentages;
+  const enrollmentByYear = data.enrollment_by_year;
 
-        if (chart) {
-            chart.destroy();
-        }
+  // Check if data is empty or has all zero values
+  const isEmptyData = Object.values(genderPercentages).every(value => value === 0) &&
+                      Object.values(enrollmentPercentages).every(value => value === 0) &&
+                      Object.values(incomeCategories).every(value => value === 0) &&
+                      Object.values(ageGroupPercentages).every(value => value === 0) &&
+                      Object.keys(enrollmentByYear).length === 0;
 
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: chartData.labels,
-                datasets: [
-                    {
-                        label: 'Health',
-                        data: chartData.health,
-                        borderColor: 'rgb(75, 192, 192)',
-                        fill: false
-                    },
-                    {
-                        label: 'Dental',
-                        data: chartData.dental,
-                        borderColor: 'rgb(255, 205, 86)',
-                        fill: false
-                    },
-                    {
-                        label: 'Total',
-                        data: total,
-                        borderColor: 'rgb(54, 162, 235)',  
-                        borderWidth: 2,
-                        fill: false
-                    }
-                ]
+  if (isEmptyData) {
+    document.getElementById('error-message').style.display = 'block';
+    document.getElementById('pie-container').style.display = 'none';
+    document.getElementById('chart-container').style.display = 'none';
+  } else {
+    document.getElementById('error-message').style.display = 'none';
+    document.getElementById('pie-container').style.display = 'flex';
+    document.getElementById('chart-container').style.display = 'block';
+
+    const grandTotal = Object.values(enrollmentByYear).reduce((sum, e) => sum + e.total, 0);
+    const maleValue = Math.round((grandTotal * genderPercentages.male_percentage) / 100);
+    const femaleValue = Math.round((grandTotal * genderPercentages.female_percentage) / 100);
+    const healthValue = Math.round((grandTotal * enrollmentPercentages.health_enrollment_percentage) / 100);
+    const dentalValue = Math.round((grandTotal * enrollmentPercentages.dental_enrollment_percentage) / 100);
+    const lowIncomeValue = Math.round((grandTotal * incomeCategories.low_income_percentage) / 100);
+    const mediumIncomeValue = Math.round((grandTotal * incomeCategories.medium_income_percentage) / 100);
+    const highIncomeValue = Math.round((grandTotal * incomeCategories.high_income_percentage) / 100);
+    const ageValues = [
+      Math.round((grandTotal * ageGroupPercentages["18-25"]) / 100),
+      Math.round((grandTotal * ageGroupPercentages["25-35"]) / 100),
+      Math.round((grandTotal * ageGroupPercentages["35-45"]) / 100),
+      Math.round((grandTotal * ageGroupPercentages["45-55"]) / 100),
+      Math.round((grandTotal * ageGroupPercentages["56+"]) / 100)
+    ];
+
+    makePieChart(3, [genderPercentages.male_percentage, genderPercentages.female_percentage], "Gender", ["male", "female"], [maleValue, femaleValue]);
+    makePieChart(2, [enrollmentPercentages.health_enrollment_percentage, enrollmentPercentages.dental_enrollment_percentage], "Enrollment", ["health_enrollment", "dental_enrollment"], [healthValue, dentalValue]);
+    makePieChart(4, [incomeCategories.low_income_percentage, incomeCategories.medium_income_percentage, incomeCategories.high_income_percentage], "Income", ["low_income", "medium_income", "high_income"], [lowIncomeValue, mediumIncomeValue, highIncomeValue]);
+    makePieChart(1, [
+      ageGroupPercentages["18-25"],
+      ageGroupPercentages["25-35"],
+      ageGroupPercentages["35-45"],
+      ageGroupPercentages["45-55"],
+      ageGroupPercentages["56+"]
+    ], "Age Group", ["18-25", "25-35", "35-45", "45-55", "56"], ageValues);
+
+    if (enrollmentByYear) {
+      chartData.labels = Object.keys(enrollmentByYear);
+      chartData.health = Object.values(enrollmentByYear).map(e => e.health);
+      chartData.dental = Object.values(enrollmentByYear).map(e => e.dental);
+
+      const selectedGraphType = graphTypeSelect.value;
+      const total = chartData.health.map((healthValue, index) => healthValue + chartData.dental[index]);
+
+      if (chart) {
+        chart.destroy();
+      }
+
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartData.labels,
+          datasets: [
+            {
+              label: 'Health',
+              data: chartData.health,
+              borderColor: 'rgb(75, 192, 192)',
+              fill: false
             },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    }
-                },
-                scales: {
-                    x: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: 'Year'
-                        }
-                    },
-                    y: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: 'Enrollment'
-                        }
-                    }
-                }
+            {
+              label: 'Dental',
+              data: chartData.dental,
+              borderColor: 'rgb(255, 205, 86)',
+              fill: false
+            },
+            {
+              label: 'Total',
+              data: total,
+              borderColor: 'rgb(54, 162, 235)',
+              borderWidth: 2,
+              fill: false
             }
-        });
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'top',
+            }
+          },
+          scales: {
+            x: {
+              display: true,
+              title: {
+                display: true,
+                text: 'Year'
+              }
+            },
+            y: {
+              display: true,
+              title: {
+                display: true,
+                text: 'Enrollment'
+              }
+            }
+          }
         }
+      });
     }
-    
+  }
+}
+
     graphTypeSelect.addEventListener('change', (event) => {
       updateChartData(chartData);
     });

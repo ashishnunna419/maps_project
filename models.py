@@ -13,8 +13,6 @@ class Enrollment(Base):
     year = Column(Integer)
     health_enrollment = Column(Integer)
     dental_enrollment = Column(Integer)
-
-    # New percentage columns
     male_percentage = Column(Float)
     female_percentage = Column(Float)
     low_income_percentage = Column(Float)

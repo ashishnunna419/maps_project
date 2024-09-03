@@ -62,7 +62,6 @@ def get_db():
 # Add data to the database
 @app.post("/add/")
 async def create_data(mapdata: EnrollmentBase, db: Session = Depends(get_db)):
-    # Calculate percentages
     total_population = mapdata.male + mapdata.female
     total_income = mapdata.low_income + mapdata.mid_income + mapdata.high_income
     total_age = mapdata.age_18_25 + mapdata.age_25_35 + mapdata.age_35_45 + mapdata.age_45_55 + mapdata.age_56_plus
